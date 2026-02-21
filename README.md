@@ -1,0 +1,1 @@
+git commit -m "Initial setup: FastAPI project with uv and basic structure"
