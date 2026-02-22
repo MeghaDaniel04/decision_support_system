@@ -1,8 +1,13 @@
+
 from pydantic import BaseModel
 from typing import Dict, List
 
-class SAWRequest(BaseModel):
-    options: List[str]
-    criteria: Dict[str, float]  
-    scores: Dict[str, Dict[str, float]] 
-    criteria_type: Dict[str, str] 
+class Option(BaseModel):
+    name: str
+    features: Dict[str, float]
+
+class DecisionRequest(BaseModel):
+    query: str
+    options: List[Option]
+    criteria_weights: Dict[str, float]
+    criteria_types: Dict[str, str]
