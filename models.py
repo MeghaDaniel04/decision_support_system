@@ -17,4 +17,14 @@ class SuggestCriteriaRequest(BaseModel):
     existing_criteria: Optional[List[str]] = []
     num_suggestions: int = 8
 
-
+class VerdictRequest(BaseModel):
+    decision_name: str
+    winner: str
+    runner_up: str
+    winner_score: float
+    runner_up_score: float
+    criteria: List[str]
+    alternatives: List[str]
+    combined_weights: List[float]
+    score_matrix: List[List[float]]
+    consistency_cr: float
