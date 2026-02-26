@@ -133,3 +133,59 @@ def analyze(req: CombinedRequest):
     }
 
 
+#===================== GROQ helper ==============================================
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+
+async def _groq_chat(system: str, user: str, max_tokens: int = 1200, temperature: float = 0.6) -> str:
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY not set")
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": GROQ_MODEL,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    async with httpx.AsyncClient(timeout=25) as client:
+        r = await client.post(GROQ_URL, headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+
+
+def _parse_json_from_text(text: str):
+    text = text.strip()
+    m = re.search(r"```(?:json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```", text)
+    if m:
+        return json.loads(m.group(1))
+    m = re.search(r"(\[[\s\S]*?\]|\{[\s\S]*?\})", text)
+    if m:
+        return json.loads(m.group(1))
+    raise ValueError("No JSON found in model response")
+
+
+
+CRITERIA_SYSTEM = (
+    "You are an expert in multi-criteria decision analysis (MCDM). "
+    "You respond ONLY with a valid JSON array — no prose, no markdown, no extra text."
+    " Do NOT assume any details (e.g., product type or domain) that are not present in the user's decision text; base suggestions only on the provided decision description and alternatives."
+)
+#---------------------------------------------------------------------------------------------------------------------------------#
+
+@router.post("/suggest-criteria")
+async def suggest_criteria(req: SuggestCriteriaRequest):
+    """Return AI-generated criteria suggestions for the user's decision."""
+
+    return await generate_criteria_suggestions(
+        req,
+        _groq_chat,
+        _parse_json_from_text,
+        CRITERIA_SYSTEM
+    )
+
+
+
+
+
