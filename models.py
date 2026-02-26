@@ -28,3 +28,10 @@ class VerdictRequest(BaseModel):
     combined_weights: List[float]
     score_matrix: List[List[float]]
     consistency_cr: float
+
+class SensitivityRequest(BaseModel):
+    criteria: List[str]
+    alternatives: List[str]
+    combined_weights: List[float]
+    score_matrix: List[List[float]]
+    benefit: List[bool]
