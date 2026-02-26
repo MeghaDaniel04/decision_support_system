@@ -22,17 +22,32 @@ def fuzzy_ahp(n: int, pref: List[List[float]]):
     total = tfn_add(row_sums)
     tr = tfn_recip(total)
     extents = [tfn_mul(row_sums[i], tr) for i in range(n)]
-    w_raw = [defuzz(e) for e in extents]
-    s = sum(w_raw)
-    weights = [w/s for w in w_raw]
+    weights_fuzzy = extents
 
     # Consistency check
-    crisp = np.array([[defuzz(fmat[i][j]) for j in range(n)] for i in range(n)])
-    ws = crisp @ np.array(weights)
-    lam = float(np.mean([ws[i]/weights[i] if weights[i]>0 else 1 for i in range(n)]))
-    ci = (lam - n)/(n-1) if n>1 else 0
-    # up to 15 criteria
-    ri_table = {1:0,2:0,3:.58,4:.9,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45,10:1.49,11:1.51,12:1.54,13:1.56,14:1.57,15:1.58}
+    crisp = np.array([
+        [defuzz(fmat[i][j]) for j in range(n)]
+        for i in range(n)
+    ])
+    w_crisp = np.array([defuzz(w) for w in weights_fuzzy])
+
+    ws = crisp @ w_crisp
+
+    lam = float(np.mean([
+        ws[i] / w_crisp[i] if w_crisp[i] > 0 else 1
+        for i in range(n)
+    ]))
+
+    ci = (lam - n) / (n - 1) if n > 1 else 0
+
+    ri_table = {
+        1:0, 2:0, 3:.58, 4:.9, 5:1.12, 6:1.24, 7:1.32,
+        8:1.41, 9:1.45, 10:1.49, 11:1.51, 12:1.54,
+        13:1.56, 14:1.57, 15:1.58
+    }
+
     ri = ri_table.get(n, 1.58)
-    cr = ci/ri if ri>0 else 0
-    return weights, round(lam,4), round(ci,4), round(cr,4)
+    cr = ci / ri if ri > 0 else 0
+
+
+    return weights_fuzzy, round(lam, 4), round(ci, 4), round(cr, 4)
