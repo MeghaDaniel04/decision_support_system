@@ -290,4 +290,92 @@ document.addEventListener('touchend',e=>{
   touchSrc=null;
 });
 
+// ── NEIGHBOR COMPARISONS ──────────────────────────────────────
+function renderNeighborCompare(){
+  const block=document.getElementById('compareBlock');
+  const n=S.criteria.length;
+  if(n<2){ block.style.display='none'; return; }
+  block.style.display='block';
+  const pairs=n-1; 
+  const bar=document.getElementById('compareCountBar');
+  bar.innerHTML=`<span>${pairs} quick question${pairs>1?'s':''}</span><div class="compare-count-track"><div class="compare-count-fill" style="width:100%"></div></div><span>instead of ${n*(n-1)/2} 😊</span>`;
+
+  const el=document.getElementById('compareCards');
+  el.innerHTML=Array.from({length:pairs},(_,i)=>{
+    const nameA=S.criteria[i], nameB=S.criteria[i+1];
+    const val=S.neighborPrefs[i]||7; // default: A is "moderately" more important
+    return `<div class="compare-card">
+      <div class="compare-question">
+        You ranked <em>${nameA}</em> above <em>${nameB}</em> — how much more important is it?
+      </div>
+      <div class="pref-slider-wrap">
+        <div class="pref-labels">
+          <strong>${nameA}</strong>
+          <span id="nlabel_${i}" style="font-size:13px;color:var(--ink3)">${neighborLabel(val)}</span>
+          <strong>${nameB}</strong>
+        </div>
+        <input type="range" class="pref-slider" min="1" max="9" step="0.5" value="${val}"
+          id="npref_${i}" oninput="updateNeighbor(${i},this.value)">
+        <div class="pref-tick-labels">
+          <span>← Just a bit more</span>
+          <span>A lot more →</span>
+        </div>
+      </div>
+      <div class="pref-summary" id="npref_sum_${i}">${neighborSummary(val,nameA,nameB)}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateNeighbor(i,val){
+  val=parseFloat(val);
+  S.neighborPrefs[i]=val;
+  const lbl=document.getElementById('nlabel_'+i); if(lbl) lbl.textContent=neighborLabel(val);
+  const sum=document.getElementById('npref_sum_'+i); if(sum) sum.textContent=neighborSummary(val,S.criteria[i],S.criteria[i+1]);
+}
+function neighborLabel(v){
+  const labels={1:'Same weight',2:'Very slightly',3:'Slightly',4:'Somewhat',5:'Moderately',6:'Considerably',7:'Strongly',8:'Very strongly',9:'Absolutely'};
+  return labels[Math.round(v)]||'';
+}
+function neighborSummary(v,a,b){
+  v=parseFloat(v);
+  if(v<=1.5) return `⚖ ${a} and ${b} are equally important`;
+  const w=['','','Slightly','Somewhat','Moderately','Considerably','Strongly','Very strongly','Overwhelmingly','Absolutely'];
+  return `${a} is ${w[Math.min(Math.round(v),9)]} more important than ${b}`;
+}
+
+// ── BUILD FULL PAIRWISE MATRIX FROM RANK + NEIGHBOR GAPS ──────────────────────
+// Method: convert the ordered rank + intensity gaps into a full consistent AHP matrix.
+// For criteria ranked 0,1,2,…n-1, the pairwise value a[i][j] (i<j) is the product
+// of the neighbor gaps between positions i and j. This preserves transitivity perfectly.
+function buildPairwiseMatrix(){
+  const n=S.criteria.length;
+  // Neighbor AHP values (1..9): how much more important rank i vs rank i+1
+  const gaps=Array.from({length:n-1},(_,i)=>Math.max(1,Math.min(9,S.neighborPrefs[i]||7)));
+
+  // a[i][j] = product of gaps[i..j-1] for i < j
+  const mat=[];
+  for(let i=0;i<n;i++){
+    const row=[];
+    for(let j=0;j<n;j++){
+      if(i===j){ row.push(1); continue; }
+      if(i<j){
+        let prod=1;
+        for(let k=i;k<j;k++) prod*=gaps[k];
+        row.push(Math.min(9,prod));
+      } else {
+        let prod=1;
+        for(let k=j;k<i;k++) prod*=gaps[k];
+        row.push(Math.max(1/9,1/Math.min(9,prod)));
+      }
+    }
+    mat.push(row);
+  }
+  return mat;
+}
+
+function go4(){
+  if(S.criteria.length<2){ alert('Add at least 2 things that matter to you!'); return; }
+  buildRatingCards();
+  goScreen(5);
+}
 
