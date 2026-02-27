@@ -107,7 +107,74 @@
   </div>
 </div>
 
+<!-- ═══ SCREEN 3a: CRITERIA SETUP ══════════════════════════════════════════ -->
+<div class="screen" id="screen3">
+  <div class="screen-title">What <em>matters</em> to you?</div>
+  <div class="screen-sub">Add everything you care about.</div>
 
+  <div id="suggestionsBlock" style="display:none">
+    <div class="card">
+      <div class="card-label">Suggested for your decision</div>
+      <div class="presets" id="suggestedCriteria"></div>
+      <div class="hint"><span class="hint-icon">👆</span><span>Tap to add. Add as many as you need — no limit.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Add your own</div>
+    <div class="option-add-row">
+      <input class="big-input" id="critInput" placeholder="e.g. Price, Warranty, Customer support…" onkeydown="critKey(event)">
+      <button class="btn-add" onclick="addCrit()">+ Add</button>
+    </div>
+    <div class="tag-list" id="critTagList" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="rankBlock" style="display:none">
+    <div class="card-label">Order your criteria</div>
+    <div id="sortableList" class="sortable-list"></div>
+    <div class="hint"><span class="hint-icon">↕</span><span>Drag to reorder criteria by importance (top = most important).</span></div>
+  </div>
+
+  <div class="card" id="compareBlock" style="display:none">
+    <div class="card-label">Quick neighbor comparisons</div>
+    <div id="compareCountBar" class="compare-count-bar"></div>
+    <div id="compareCards"></div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-secondary" onclick="goScreen(2)">← Back</button>
+    <button class="btn-primary" onclick="go4()">Next: Set Priorities →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 3b: ONE-AT-A-TIME PAIRWISE ════════════════════════════════ -->
+<div class="screen" id="screen3b">
+  <!-- Header stays fixed -->
+  <div style="margin-bottom:20px">
+    <div class="screen-title" id="cmpTitle">Which matters <em>more?</em></div>
+    <div class="screen-sub" id="cmpSub">Answer honestly — there are no wrong answers.</div>
+
+    <!-- Progress bar -->
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+      <div style="flex:1;height:6px;background:var(--warm2);border-radius:3px;overflow:hidden">
+        <div id="cmpProgress" style="height:100%;background:var(--gold);border-radius:3px;transition:width .4s ease"></div>
+      </div>
+      <span id="cmpCount" style="font-size:13px;color:var(--ink3);white-space:nowrap;font-weight:500"></span>
+    </div>
+
+    <!-- Consistency live indicator -->
+    <div id="cmpConsistency" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <!-- The single active question card -->
+  <div id="cmpCard"></div>
+
+  <!-- Navigation for the quiz -->
+  <div class="nav-row" style="margin-top:16px">
+    <button class="btn-secondary" id="cmpBackBtn" onclick="cmpBack()">← Previous</button>
+    <button class="btn-primary" id="cmpNextBtn" onclick="cmpNext()">Next →</button>
+  </div>
+</div>
 
 </div> <!---end of main-->
 
