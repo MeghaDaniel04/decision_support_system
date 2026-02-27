@@ -52,7 +52,7 @@
 </div>
 
 <div class="main">
-  
+
 <!--═══ PAGE 1: DECISION CONTEXT ═══════════════════════════════════════════-->
 <div class="screen active" id="screen1">
   <div class="screen-title">What are you trying to <em>decide?</em></div>
@@ -82,6 +82,32 @@
     <button class="btn-primary" onclick="go2()">Next: My Options →</button>
   </div>
 </div>
+
+<!-- ═══ SCREEN 2: OPTIONS ═══════════════════════════════════════════════════-->
+<div class="screen" id="screen2">
+  <div class="screen-title">What are your <em>options?</em></div>
+  <div class="screen-sub" id="s2sub">Add at least 2 things you're comparing.</div>
+
+  <div class="card">
+    <div class="card-label">Type an option name and press Enter</div>
+    <div class="option-add-row">
+      <input class="big-input" id="altInput" placeholder="e.g. Dell XPS 15, MacBook Pro…" onkeydown="altKey(event)">
+      <button class="btn-add" onclick="addAlt()">+ Add</button>
+    </div>
+    <div class="tag-list" id="altTags"></div>
+    <div class="hint">
+      <span class="hint-icon">💡</span>
+      <span>Add 2 to 6 options. Too many choices can make decisions harder!</span>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-secondary" onclick="goScreen(1)">← Back</button>
+    <button class="btn-primary" onclick="go3()">Next: What Matters →</button>
+  </div>
+</div>
+
+
 
 </div> <!---end of main-->
 
