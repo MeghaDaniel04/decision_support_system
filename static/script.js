@@ -159,4 +159,42 @@ async function fetchAISuggestions(containerEl, blockEl){
   }
 }
 
+// ── STEP 3: CRITERIA ──────────────────────────────────────────────────────────
+function addSuggested(el, name){
+  if(S.criteria.includes(name)){
+    removeCrit(name); el.classList.remove('selected');
+  } else {
+    S.criteria.push(name);
+    S.benefit[name] = (S.presetKey && PRESETS[S.presetKey]) ? (PRESETS[S.presetKey].benefit[name]!==false) : true;
+    el.classList.add('selected');
+    renderSortableList(); renderNeighborCompare();
+  }
+}
+function critKey(e){ if(e.key==='Enter') addCrit(); }
+function addCrit(){
+  const inp=document.getElementById('critInput');
+  const v=inp.value.trim(); if(!v||S.criteria.includes(v)) return;
+  S.criteria.push(v); S.benefit[v]=true; inp.value='';
+  // sync suggestion chips
+  document.querySelectorAll('#suggestedCriteria .preset-chip').forEach(c=>{ if(c.textContent===v) c.classList.add('selected'); });
+  renderSortableList(); renderNeighborCompare();
+}
+function removeCrit(name){
+  const idx=S.criteria.indexOf(name); if(idx<0) return;
+  S.criteria.splice(idx,1); delete S.benefit[name];
+  // shift neighborPrefs keys
+  const newPrefs={};
+  Object.keys(S.neighborPrefs).forEach(k=>{
+    const ki=parseInt(k);
+    if(ki<idx) newPrefs[k]=S.neighborPrefs[k];
+    else if(ki>idx) newPrefs[String(ki-1)]=S.neighborPrefs[k];
+  });
+  S.neighborPrefs=newPrefs;
+  document.querySelectorAll('#suggestedCriteria .preset-chip').forEach(c=>{ if(c.textContent===name) c.classList.remove('selected'); });
+  renderSortableList(); renderNeighborCompare();
+}
+function setBenefit(name,val){
+  S.benefit[name]=val; renderSortableList();
+}
+
 
