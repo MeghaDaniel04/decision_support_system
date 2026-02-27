@@ -52,4 +52,18 @@ function go2(){
   goScreen(2);
 }
 
+// ── STEP 2: ALTERNATIVES ───────────────────────────────────────────────────────
+function altKey(e){ if(e.key==='Enter') addAlt(); }
+function addAlt(){
+  const inp=document.getElementById('altInput');
+  const v=inp.value.trim(); if(!v||S.alternatives.includes(v)) return;
+  S.alternatives.push(v); inp.value=''; renderAltTags();
+}
+function removeAlt(v){
+  S.alternatives=S.alternatives.filter(x=>x!==v); renderAltTags();
+}
+function renderAltTags(){
+  document.getElementById('altTags').innerHTML=S.alternatives.map(v=>
+    `<div class="tag"><span>${v}</span><span class="tag-x" onclick="removeAlt('${escQ(v)}')">×</span></div>`).join('');
+}
 
