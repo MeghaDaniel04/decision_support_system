@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Smart Decision Helper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css"/>
+<script src="/static/script.js" defer></script>
+</head>
+<body>
+
+<div class="hero">
+  <span class="hero-icon">💡</span>
+  <h1>Your guide<br><em>to what fits best</em></h1>
+  <p>Complexity is the enemy of progress. Answer a few simple questions and We'll crunch the numbers using advanced decision science — no expertise required.</p>
+  <div class="method-pills">
+    <span class="pill">Fuzzy AHP</span>
+    <span class="pill">Entropy Weighting</span>
+    <span class="pill">Fuzzy TOPSIS</span>
+  </div>
+</div>
+
+<div class="progress-bar-wrap">
+  <div class="progress-inner">
+    <div class="prog-step active" id="ps1" onclick="tryNav(1)">
+      <div class="prog-dot" id="pd1">1</div>
+      <div class="prog-label">What &amp; Why</div>
+    </div>
+    <div class="prog-line" id="pl1"></div>
+    <div class="prog-step" id="ps2" onclick="tryNav(2)">
+      <div class="prog-dot" id="pd2">2</div>
+      <div class="prog-label">Your Options</div>
+    </div>
+    <div class="prog-line" id="pl2"></div>
+    <div class="prog-step" id="ps3" onclick="tryNav(3)">
+      <div class="prog-dot" id="pd3">3</div>
+      <div class="prog-label">What Matters</div>
+    </div>
+    <div class="prog-line" id="pl3"></div>
+    <div class="prog-step" id="ps4" onclick="tryNav(4)">
+      <div class="prog-dot" id="pd4">4</div>
+      <div class="prog-label">Rate Them</div>
+    </div>
+    <div class="prog-line" id="pl4"></div>
+    <div class="prog-step" id="ps5" onclick="tryNav(5)">
+      <div class="prog-dot" id="pd5">5</div>
+      <div class="prog-label">Results</div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Floating API config button -->
+<div class="api-config">
+  <button class="api-toggle" onclick="toggleAPI()" title="API Settings">⚙</button>
+  <div class="api-popup" id="apiPopup">
+    <label>Backend URL</label>
+    <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+    <div style="font-size:12px;color:var(--ink3);margin-top:8px">FastAPI server address</div>
+  </div>
+</div>
+
+
+</body>
+</html> 
