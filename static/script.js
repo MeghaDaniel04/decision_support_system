@@ -473,3 +473,230 @@ function localFallback(){
 }
 
 
+// ── RESULTS ────────────────────────────────────────────────────────────────────
+function showRecommendation(rec){
+  const box=document.getElementById('recommendationBox');
+  if(!box) return;
+  if(!rec){ box.innerHTML=''; return; }
+  box.innerHTML=`
+    <div class="card">
+      <h3>🏆 Recommended Option</h3>
+      <p><strong>${rec.best}</strong></p>
+      <p>${rec.message}</p>
+      <p><em>${rec.insight}</em></p>
+    </div>
+  `;
+}
+
+function showSensitivity(data, criteria) {
+  const box = document.getElementById("sensitivityBox");
+  if (!box) return;
+  if (!data || !data.criteria_sensitivity) { box.innerHTML = ""; return; }
+
+  const stableLabel = data.stable
+    ? `<div style="color:var(--green);font-weight:500;margin-bottom:12px">✅ Decision is stable — winner holds across all weight changes.</div>`
+    : `<div style="color:var(--red);font-weight:500;margin-bottom:12px">⚠ Decision is sensitive — some weight changes flip the winner.</div>`;
+
+  const rows = data.criteria_sensitivity.map(c => {
+    const statusIcon = c.ever_changes ? "⚠" : "✅";
+    const statusColor = c.ever_changes ? "var(--red)" : "var(--green)";
+
+    // Build perturbation detail rows
+    const pertRows = c.perturbations.map(p => `
+      <tr>
+        <td style="padding:5px 8px;font-family:monospace;color:var(--ink3)">${p.factor > 1 ? '+' : ''}${((p.factor - 1) * 100).toFixed(0)}%</td>
+        <td style="padding:5px 8px;font-family:monospace">${(p.new_weight * 100).toFixed(1)}%</td>
+        <td style="padding:5px 8px;font-weight:${p.changed ? '600' : '400'};color:${p.changed ? 'var(--red)' : 'var(--ink)'}">${p.winner}</td>
+        <td style="padding:5px 8px">${p.changed ? '⚠ Changes' : '✅ Stable'}</td>
+      </tr>`).join('');
+
+    return `
+      <div style="margin-bottom:16px;border:1px solid var(--warm2);border-radius:10px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    padding:10px 14px;background:var(--warm1);cursor:pointer"
+             onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none' ? 'block' : 'none'">
+          <div>
+            <strong>${c.criterion_name}</strong>
+            <span style="font-size:12px;color:var(--ink3);margin-left:8px">base weight: ${(c.base_weight * 100).toFixed(1)}%</span>
+          </div>
+          <span style="color:${statusColor};font-weight:600">${statusIcon} ${c.ever_changes ? 'Sensitive' : 'Stable'}</span>
+        </div>
+        <div style="display:none;padding:10px 14px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="color:var(--ink3);font-size:12px">
+                <th style="text-align:left;padding:5px 8px">Change</th>
+                <th style="text-align:left;padding:5px 8px">New Weight</th>
+                <th style="text-align:left;padding:5px 8px">Winner</th>
+                <th style="text-align:left;padding:5px 8px">Status</th>
+              </tr>
+            </thead>
+            <tbody>${pertRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+
+  box.innerHTML = `
+    <div class="card">
+      <h3>📊 Sensitivity Analysis</h3>
+      <p style="font-size:13px;color:var(--ink3);margin-bottom:14px">
+        Base winner: <strong>${data.base_winner}</strong> (score: ${(data.base_score * 100).toFixed(1)}%)
+        · Click any criterion to expand perturbation details.
+      </p>
+      ${stableLabel}
+      ${rows}
+    </div>`;
+}
+
+function renderResults(data){
+  const rc=document.getElementById('resultsContainer');
+  const maxCC=Math.max(...data.ranking_table.map(r=>r.closeness));
+  const maxW=Math.max(...data.combined_weights);
+  let html='';
+  if(data._fallback) html+=`<div class="err-box" style="margin-bottom:16px">⚠ Server offline — showing rank-weighted estimate. Start the backend for full Fuzzy MCDM results.</div>`;
+
+  html+=`<div class="winner-card">
+    <span class="confetti">🏆</span>
+    <div class="winner-label">Best Choice for "${S.decisionName}"</div>
+    <div class="winner-name">${data.winner}</div>
+    <div class="winner-sub">Based on ${data.criteria.length} criteria across ${data.alternatives.length} options</div>
+  </div>`;
+
+  html+=`<div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--ink);margin-bottom:14px">Full Ranking</div>
+  <div class="rank-list">`;
+  data.ranking_table.forEach(row=>{
+    const medals=['🥇','🥈','🥉'];
+    html+=`<div class="rank-item ${row.rank===1?'first':''}">
+      <div class="rank-num">${medals[row.rank-1]||row.rank}</div>
+      <div class="rank-alt">${row.alternative}</div>
+      <div class="rank-bar-wrap">
+        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${(row.closeness/maxCC*100).toFixed(1)}%"></div></div>
+        <div class="rank-score">${(row.closeness*100).toFixed(0)}%</div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  html+=`<div class="insight-grid">
+    <div class="insight-card">
+      <h4>What mattered most</h4>
+      <div class="insight-weights">`;
+  data.combined_weights.forEach((w,i)=>{
+    html+=`<div class="ins-w-row">
+      <div class="ins-w-name" title="${data.criteria[i]}">${data.criteria[i]}</div>
+      <div class="ins-w-bar"><div class="ins-w-fill" style="width:${(w/maxW*100).toFixed(1)}%;background:linear-gradient(90deg,var(--green2),var(--gold2))"></div></div>
+      <div class="ins-w-pct">${(w*100).toFixed(0)}%</div>
+    </div>`;
+  });
+  html+=`</div></div>
+    <div class="insight-card">
+      <h4>Analysis Quality</h4>
+      <div style="margin-bottom:12px">
+        <div class="consistency-badge ${data.consistency.ok?'ok':'warn'}">
+          ${data.consistency.ok?'✓ Preferences are consistent':'⚠ Some preferences conflict'}
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7">
+        ${data._fallback?'<em>Basic rank-weighted estimate.</em>':
+        `CR = ${data.consistency.CR.toFixed(3)}<br>λ_max = ${data.consistency.lambda_max.toFixed(3)}<br>${data.criteria.length} criteria · ${data.alternatives.length} alternatives`}
+      </div>
+    </div>
+  </div>`;
+
+  if(!data._fallback){
+    html+=`<div class="detail-toggle" onclick="toggleDetail(this)">🔬 Show detailed analysis ↓</div>
+    <div class="detail-section" id="detailSection">
+      <div class="card">
+        <div class="card-label">Weight Sources (AHP vs Entropy)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Your Priorities (AHP)</div>
+            <div class="insight-weights">`;
+    const maxA=Math.max(...data.ahp_weights);
+    data.ahp_weights.forEach((w,i)=>{ html+=`<div class="ins-w-row"><div class="ins-w-name">${data.criteria[i]}</div><div class="ins-w-bar"><div class="ins-w-fill" style="width:${(w/maxA*100).toFixed(1)}%;background:linear-gradient(90deg,#c9873a,#e8a055)"></div></div><div class="ins-w-pct">${(w*100).toFixed(0)}%</div></div>`; });
+    const maxE=Math.max(...data.entropy_weights);
+    html+=`</div></div><div>
+            <div style="font-size:12px;font-weight:500;color:var(--green);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Data Spread (Entropy)</div>
+            <div class="insight-weights">`;
+    data.entropy_weights.forEach((w,i)=>{ html+=`<div class="ins-w-row"><div class="ins-w-name">${data.criteria[i]}</div><div class="ins-w-bar"><div class="ins-w-fill" style="width:${(w/maxE*100).toFixed(1)}%;background:linear-gradient(90deg,#2d6a4f,#52b788)"></div></div><div class="ins-w-pct">${(w*100).toFixed(0)}%</div></div>`; });
+    html+=`</div></div></div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:12px;border-top:1px solid var(--warm2);padding-top:10px">
+          <strong>Final weight</strong> = 50% from your ranking (Fuzzy AHP) + 50% from score variation (Entropy)
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">TOPSIS Closeness Scores</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--warm2);color:var(--ink3);font-weight:500">Option</th>
+            <th style="text-align:center;padding:8px;border-bottom:1px solid var(--warm2);color:var(--ink3);font-weight:500">D⁺</th>
+            <th style="text-align:center;padding:8px;border-bottom:1px solid var(--warm2);color:var(--ink3);font-weight:500">D⁻</th>
+            <th style="text-align:center;padding:8px;border-bottom:1px solid var(--warm2);color:var(--ink3);font-weight:500">Score</th>
+          </tr></thead><tbody>`;
+    data.ranking_table.forEach(row=>{
+      html+=`<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--warm2)">${row.alternative}</td>
+        <td style="text-align:center;padding:8px;border-bottom:1px solid var(--warm2);color:var(--red);font-family:monospace">${row.d_pos.toFixed(4)}</td>
+        <td style="text-align:center;padding:8px;border-bottom:1px solid var(--warm2);color:var(--green);font-family:monospace">${row.d_neg.toFixed(4)}</td>
+        <td style="text-align:center;padding:8px;border-bottom:1px solid var(--warm2);font-weight:600">${(row.closeness*100).toFixed(1)}%</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div></div>`;
+  }
+
+  rc.innerHTML=html;
+  setTimeout(()=>{
+    document.querySelectorAll('.rank-bar-fill,.ins-w-fill').forEach(el=>{
+      const w=el.style.width; el.style.width='0'; setTimeout(()=>el.style.width=w,50);
+    });
+  },100);
+}
+
+function toggleDetail(btn){
+  const sec=document.getElementById('detailSection');
+  const open=sec.classList.toggle('open');
+  btn.textContent=open?'🔬 Hide detailed analysis ↑':'🔬 Show detailed analysis ↓';
+}
+
+// ── NAV ────────────────────────────────────────────────────────────────────────
+function goScreen(n){
+  document.querySelectorAll('.screen').forEach((s,i)=>s.classList.toggle('active',i+1===n));
+  [1,2,3,4,5].forEach(i=>{
+    document.getElementById('ps'+i).classList.toggle('active',i===n);
+    document.getElementById('ps'+i).classList.toggle('done',i<n);
+    document.getElementById('pd'+i).textContent=i<n?'✓':i;
+    if(i<5) document.getElementById('pl'+i).classList.toggle('done',i<n);
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function tryNav(n){
+  if(n===1) goScreen(1);
+  else if(n===2&&S.decisionName) goScreen(2);
+  else if(n===3&&S.alternatives.length>=2) goScreen(3);
+  else if(n===4&&S.criteria.length>=2) goScreen(4);
+  else if(n===5&&S.results) goScreen(5);
+}
+function startOver(){
+  Object.assign(S,{decisionName:'',presetKey:null,alternatives:[],criteria:[],benefit:{},neighborPrefs:{},scores:{},results:null});
+  document.getElementById('decisionName').value='';
+  document.querySelectorAll('.preset-chip').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('altTags').innerHTML='';
+  document.getElementById('sortableList').innerHTML='';
+  document.getElementById('rankBlock').style.display='none';
+  document.getElementById('compareBlock').style.display='none';
+  showRecommendation(null);
+  showSensitivity(null, S.criteria);
+  goScreen(1);
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────────
+function escQ(s){ return String(s).replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+function toggleAPI(){ document.getElementById('apiPopup').classList.toggle('open'); }
+document.addEventListener('click',e=>{
+  const cfg=document.querySelector('.api-config');
+  if(cfg&&!cfg.contains(e.target)) document.getElementById('apiPopup').classList.remove('open');
+});
+
+
+
