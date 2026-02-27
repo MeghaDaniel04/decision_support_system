@@ -21,4 +21,35 @@ const PRESETS = {
   phone:      { suggestions: ['Price','Camera Quality','Battery Life','Performance','Display','Durability'], benefit: {'Price':false,'Camera Quality':true,'Battery Life':true,'Performance':true,'Display':true,'Durability':true} },
 };
 
+// ── STEP 1 ─────────────────────────────────────────────────────────────────────
+async function autoLoadSuggestions(){
+  if(!S.decisionName) return;
+
+  const sc = document.getElementById('suggestedCriteria');
+  const block = document.getElementById('suggestionsBlock');
+  if(!sc || !block) return;
+
+  await fetchAISuggestions(sc, block);
+}
+
+function updateDecisionPreview(){
+  S.decisionName = document.getElementById('decisionName').value;
+
+  // AUTO trigger (debounced)
+  clearTimeout(window._suggTimer);
+  window._suggTimer = setTimeout(autoLoadSuggestions, 600);
+}
+function pickPreset(el, name, key){
+  document.querySelectorAll('.preset-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  S.decisionName = name; S.presetKey = key;
+  document.getElementById('decisionName').value = name;
+  autoLoadSuggestions(); // fix
+}
+function go2(){
+  if(!S.decisionName.trim()){ alert('Please name your decision first!'); return; }
+  document.getElementById('s2sub').textContent = 'What are you comparing for: "'+S.decisionName+'"?';
+  goScreen(2);
+}
+
 
