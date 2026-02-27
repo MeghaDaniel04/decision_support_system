@@ -379,3 +379,97 @@ function go4(){
   goScreen(5);
 }
 
+
+
+
+
+// ── STEP 4: RATINGS ───────────────────────────────────────────────────────────
+function buildRatingCards(){
+  const el=document.getElementById('ratingCards');
+  el.innerHTML=S.alternatives.map(alt=>`
+    <div class="rating-card">
+      <div class="rating-alt-name">${alt}</div>
+      ${S.criteria.map(crit=>{
+        const key=alt+'__'+crit;
+        const cur=S.scores[key];
+        if(cur == null) S.scores[key] = 5;
+        const sid=key.replace(/[^a-z0-9]/gi,'_');
+        return `<div class="criteria-rating-row">
+          <div style="min-width:130px;flex-shrink:0">
+            <div class="crit-name">${crit}</div>
+            <span class="crit-type-badge ${S.benefit[crit]?'benefit':'cost'}">${S.benefit[crit]?'↑ Higher = Better':'↓ Lower = Better'}</span>
+          </div>
+          <div class="rating-full-row">
+            <input type="range" min="1" max="9" step="0.1" value="${cur||5}"
+              oninput="setSliderRating('${escQ(alt)}','${escQ(crit)}',this.value,this)">
+            <div class="rating-text" id="rtxt_${sid}">
+              ${cur ? cur.toFixed(1) : '5.0'}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+function setSliderRating(alt, crit, val, el){
+  val = parseFloat(val);
+
+  const key = alt + '__' + crit;
+  S.scores[key] = val;
+
+  const sid = key.replace(/[^a-z0-9]/gi,'_');
+
+  const txt = document.getElementById('rtxt_' + sid);
+  if(txt) txt.textContent = val.toFixed(1);
+}
+async function runAnalysis(){
+  const missing=[];
+  S.alternatives.forEach(alt=>S.criteria.forEach(crit=>{ if(S.scores[alt+'__'+crit] == null) missing.push(alt+' → '+crit); }));
+  if(missing.length){ alert('Please rate all options:\n'+missing.slice(0,6).join('\n')+(missing.length>6?'\n…and '+(missing.length-6)+' more':'')); return; }
+
+  document.getElementById('analyzeBtn').disabled=true;
+  // show the results screen (account for the extra pairwise screen in DOM)
+  goScreen(6);
+  const rc=document.getElementById('resultsContainer');
+  rc.innerHTML=`<div class="spinner-wrap">
+    <div class="spinner"></div>
+    <div class="spinner-text">Crunching the numbers…</div>
+    <div class="spinner-sub">Fuzzy AHP · Entropy · TOPSIS — for ${S.criteria.length} criteria × ${S.alternatives.length} alternatives</div>
+  </div>`;
+
+  try{
+    const prefMat=buildPairwiseMatrix();
+    const scoreMat=S.alternatives.map(alt=>S.criteria.map(crit=>S.scores[alt+'__'+crit]||0));
+    const benefit=S.criteria.map(c=>S.benefit[c]!==false);
+    const body={criteria:S.criteria,alternatives:S.alternatives,preference_matrix:prefMat,score_matrix:scoreMat,benefit,ahp_weight:0.5};
+    const res=await fetch(API()+'/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!res.ok){ const e=await res.json(); throw new Error(e.detail||JSON.stringify(e)); }
+    const data=await res.json();
+    S.results=data; renderResults(data);
+    showRecommendation(data.recommendation);
+    showSensitivity(data.sensitivity, S.criteria);
+  } catch(e){
+    rc.innerHTML=`<div class="err-box">⚠ Could not reach the analysis server.<br><small>${e.message}</small></div>
+    <div class="hint"><span class="hint-icon">💡</span><span>Make sure FastAPI is running. Tap ⚙ to change the server URL. Showing basic local estimate below.</span></div>`;
+    showRecommendation(null);
+    showSensitivity(null, S.criteria);
+    localFallback();
+  }
+  document.getElementById('analyzeBtn').disabled=false;
+}
+
+function localFallback(){
+  // Weighted sum using rank-based weights (1/rank normalised) as fallback
+  const n=S.criteria.length;
+  const rankWeights=S.criteria.map((_,i)=>1/(i+1));
+  const total=rankWeights.reduce((a,b)=>a+b,0);
+  const w=rankWeights.map(x=>x/total);
+  const scoreMat=S.alternatives.map(alt=>S.criteria.map(crit=>S.scores[alt+'__'+crit]||0));
+  const totals=S.alternatives.map((_,i)=>scoreMat[i].reduce((s,v,j)=>s+v*w[j],0));
+  const ranked=S.alternatives.map((alt,i)=>({rank:0,alternative:alt,closeness:totals[i]/5,d_pos:0,d_neg:totals[i]/5}));
+  ranked.sort((a,b)=>b.closeness-a.closeness);
+  ranked.forEach((r,i)=>r.rank=i+1);
+  renderResults({ranking_table:ranked,winner:ranked[0].alternative,ahp_weights:w,entropy_weights:w,combined_weights:w,entropy_values:S.criteria.map(()=>0.5),consistency:{lambda_max:n,CI:0,CR:0,ok:true},criteria:S.criteria,alternatives:S.alternatives,benefit:S.criteria.map(c=>S.benefit[c]!==false),_fallback:true});
+}
+
+
