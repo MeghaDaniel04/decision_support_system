@@ -51,7 +51,39 @@
   </div>
 </div>
 
+<div class="main">
+  
+<!--═══ PAGE 1: DECISION CONTEXT ═══════════════════════════════════════════-->
+<div class="screen active" id="screen1">
+  <div class="screen-title">What are you trying to <em>decide?</em></div>
+  <div class="screen-sub">Give your decision a name — this helps you stay focused.</div>
 
+  <div class="card">
+    <div class="card-label">I'm trying to decide…</div>
+    <input class="big-input" id="decisionName" placeholder="e.g. Which laptop to buy, Which job offer to accept…" oninput="updateDecisionPreview()">
+    <div class="hint">
+      <span class="hint-icon">💡</span>
+      <span>Be specific — "which smartphone to buy for my mum" works better than "phone"</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Or choose a common decision type</div>
+    <div class="presets" id="presetGrid">
+      <div class="preset-chip" onclick="pickPreset(this,'Buying a Laptop','laptop')">💻 Laptop for gamin</div>
+      <div class="preset-chip" onclick="pickPreset(this,'Choosing a Job Offer','job')">💼 Best Job Offer</div>
+      <div class="preset-chip" onclick="pickPreset(this,'Choosing a University','university')">🎓 University</div>
+      <div class="preset-chip" onclick="pickPreset(this,'Picking a Phone','phone')">📱 Phone</div>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <div></div>
+    <button class="btn-primary" onclick="go2()">Next: My Options →</button>
+  </div>
+</div>
+
+</div> <!---end of main-->
 
 <!-- Floating API config button -->
 <div class="api-config">
