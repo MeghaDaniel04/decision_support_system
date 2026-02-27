@@ -196,5 +196,98 @@ function removeCrit(name){
 function setBenefit(name,val){
   S.benefit[name]=val; renderSortableList();
 }
+// ── SORTABLE DRAG-AND-DROP ─────────────────────────────────────────────────────
+let dragSrc=null;
+function renderSortableList(){
+  const n=S.criteria.length;
+  const block=document.getElementById('rankBlock');
+  if(n===0){ block.style.display='none'; return; }
+  block.style.display='block';
+  const el=document.getElementById('sortableList');
+  el.innerHTML=S.criteria.map((name,i)=>`
+    <div class="sort-item" draggable="true"
+      data-idx="${i}"
+      ondragstart="onDragStart(event,${i})"
+      ondragover="onDragOver(event,${i})"
+      ondragleave="onDragLeave(event)"
+      ondrop="onDrop(event,${i})"
+      ondragend="onDragEnd(event)">
+      <span class="sort-handle" title="Drag to reorder">≡</span>
+      <span class="sort-rank-num ${i===0?'top':''}">
+        ${i===0?'★':(i+1)}
+      </span>
+      <span class="sort-name">${name}</span>
+      <div class="sort-badge-wrap">
+        <button onclick="setBenefit('${escQ(name)}',true)" title="Higher score = better"
+          style="font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid;cursor:pointer;
+          background:${S.benefit[name]?'var(--green-light)':'#fff'};
+          color:${S.benefit[name]?'var(--green)':'var(--ink3)'};
+          border-color:${S.benefit[name]?'var(--green)':'var(--warm2)'}">↑ Higher</button>
+        <button onclick="setBenefit('${escQ(name)}',false)" title="Lower score = better"
+          style="font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid;cursor:pointer;
+          background:${!S.benefit[name]?'var(--red-light)':'#fff'};
+          color:${!S.benefit[name]?'var(--red)':'var(--ink3)'};
+          border-color:${!S.benefit[name]?'var(--red)':'var(--warm2)'}">↓ Lower</button>
+        <span class="tag-x" onclick="removeCrit('${escQ(name)}')" style="font-size:18px;color:var(--ink3);cursor:pointer" title="Remove">×</span>
+      </div>
+    </div>`).join('');
+}
+
+function onDragStart(e,i){ dragSrc=i; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }
+function onDragOver(e,i){ e.preventDefault(); e.dataTransfer.dropEffect='move'; if(dragSrc!==i) e.currentTarget.classList.add('drag-over'); }
+function onDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function onDrop(e,i){
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  if(dragSrc===null||dragSrc===i) return;
+  // Reorder criteria array
+  const moved=S.criteria.splice(dragSrc,1)[0];
+  S.criteria.splice(i,0,moved);
+  // Reset neighbor prefs since order changed
+  S.neighborPrefs={};
+  dragSrc=null;
+  renderSortableList(); renderNeighborCompare();
+}
+function onDragEnd(e){ e.currentTarget.classList.remove('dragging'); dragSrc=null; }
+
+// Touch drag support
+let touchSrc=null, touchClone=null;
+document.addEventListener('touchstart',e=>{
+  const item=e.target.closest('.sort-item'); if(!item) return;
+  touchSrc=parseInt(item.dataset.idx);
+  // create ghost
+  touchClone=item.cloneNode(true);
+  touchClone.style.cssText='position:fixed;opacity:.7;pointer-events:none;z-index:9999;width:'+item.offsetWidth+'px;left:'+item.getBoundingClientRect().left+'px;top:'+item.getBoundingClientRect().top+'px;border-color:var(--gold)';
+  document.body.appendChild(touchClone);
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  if(touchSrc===null||!touchClone) return;
+  e.preventDefault();
+  const t=e.touches[0];
+  touchClone.style.left=(t.clientX-touchClone.offsetWidth/2)+'px';
+  touchClone.style.top=(t.clientY-touchClone.offsetHeight/2)+'px';
+  // highlight target
+  document.querySelectorAll('.sort-item').forEach(el=>el.classList.remove('drag-over'));
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const target=under&&under.closest('.sort-item');
+  if(target&&parseInt(target.dataset.idx)!==touchSrc) target.classList.add('drag-over');
+},{passive:false});
+document.addEventListener('touchend',e=>{
+  if(touchSrc===null) return;
+  if(touchClone){ touchClone.remove(); touchClone=null; }
+  const t=e.changedTouches[0];
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const target=under&&under.closest('.sort-item');
+  if(target){
+    const ti=parseInt(target.dataset.idx);
+    if(ti!==touchSrc){
+      const moved=S.criteria.splice(touchSrc,1)[0];
+      S.criteria.splice(ti,0,moved);
+      S.neighborPrefs={};
+      renderSortableList(); renderNeighborCompare();
+    }
+  }
+  document.querySelectorAll('.sort-item').forEach(el=>el.classList.remove('drag-over'));
+  touchSrc=null;
+});
 
 
