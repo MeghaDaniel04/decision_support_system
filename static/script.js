@@ -499,39 +499,63 @@ function setSliderRating(alt, crit, val, el){
 
 
 async function runAnalysis(){
-  const missing=[];
-  S.alternatives.forEach(alt=>S.criteria.forEach(crit=>{ if(S.scores[alt+'__'+crit] == null) missing.push(alt+' → '+crit); }));
-  if(missing.length){ alert('Please rate all options:\n'+missing.slice(0,6).join('\n')+(missing.length>6?'\n…and '+(missing.length-6)+' more':'')); return; }
+  const missing = [];
+  S.alternatives.forEach(alt => S.criteria.forEach(crit => {
+    const mode = S.criterionMode[crit] || 'slider';
+    const key  = alt + '__' + crit;
+    if(mode === 'real' && (S.realValues[key] == null || isNaN(S.realValues[key])))
+      missing.push(alt + ' → ' + crit + ' (enter a number)');
+    if(mode === 'slider' && !S.scores[key])
+      missing.push(alt + ' → ' + crit);
+  }));
+  if(missing.length){ alert('Please fill in:\n'+missing.slice(0,6).join('\n')+(missing.length>6?'\n…and '+(missing.length-6)+' more':'')); return; }
 
-  document.getElementById('analyzeBtn').disabled=true;
-  // show the results screen (account for the extra pairwise screen in DOM)
+  document.getElementById('analyzeBtn').disabled = true;
   goScreen(6);
-  const rc=document.getElementById('resultsContainer');
-  rc.innerHTML=`<div class="spinner-wrap">
+  const rc = document.getElementById('resultsContainer');
+  rc.innerHTML = `<div class="spinner-wrap">
     <div class="spinner"></div>
     <div class="spinner-text">Crunching the numbers…</div>
     <div class="spinner-sub">Fuzzy AHP · Entropy · TOPSIS — for ${S.criteria.length} criteria × ${S.alternatives.length} alternatives</div>
   </div>`;
 
-  try{
-    const prefMat=buildPairwiseMatrix();
-    const scoreMat=S.alternatives.map(alt=>S.criteria.map(crit=>S.scores[alt+'__'+crit]||0));
-    const benefit=S.criteria.map(c=>S.benefit[c]!==false);
-    const body={criteria:S.criteria,alternatives:S.alternatives,preference_matrix:prefMat,score_matrix:scoreMat,benefit,ahp_weight:0.5};
-    const res=await fetch(API()+'/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!res.ok){ const e=await res.json(); throw new Error(e.detail||JSON.stringify(e)); }
-    const data=await res.json();
-    S.results=data; renderResults(data);
+  try {
+    const prefMat = buildPairwiseMatrix();
+    const scoreMat = S.alternatives.map(alt =>
+      S.criteria.map(crit => S.scores[alt+'__'+crit] || 5)
+    );
+    const realVals = {};
+    Object.entries(S.realValues).forEach(([k,v]) => {
+      if(v !== null && v !== undefined && !isNaN(v)) realVals[k] = v;
+    });
+    const body = {
+      criteria:          S.criteria,
+      alternatives:      S.alternatives,
+      preference_matrix: prefMat,
+      score_matrix:      scoreMat,
+      benefit:           S.criteria.map(c => S.benefit[c] !== false),
+      ahp_weight:        0.5,
+      real_values:       Object.keys(realVals).length > 0 ? realVals : null,
+    };
+    const res = await fetch(API()+'/api/analyze', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    if(!res.ok){ const e = await res.json(); throw new Error(e.detail||JSON.stringify(e)); }
+    const data = await res.json();
+    S.results = data;
+    renderResults(data);
     showRecommendation(data.recommendation);
     showSensitivity(data.sensitivity, S.criteria);
+    showNormalisationMeta(data.normalisation_meta);
   } catch(e){
-    rc.innerHTML=`<div class="err-box">⚠ Could not reach the analysis server.<br><small>${e.message}</small></div>
+    rc.innerHTML = `<div class="err-box">⚠ Could not reach the analysis server.<br><small>${e.message}</small></div>
     <div class="hint"><span class="hint-icon">💡</span><span>Make sure FastAPI is running. Tap ⚙ to change the server URL. Showing basic local estimate below.</span></div>`;
     showRecommendation(null);
     showSensitivity(null, S.criteria);
+    showNormalisationMeta(null);
     localFallback();
   }
-  document.getElementById('analyzeBtn').disabled=false;
+  document.getElementById('analyzeBtn').disabled = false;
 }
 
 function localFallback(){
