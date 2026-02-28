@@ -387,44 +387,117 @@ function go4(){
 
 
 // ── STEP 4: RATINGS ───────────────────────────────────────────────────────────
+function setCritMode(crit, mode) {
+  S.criterionMode[crit] = mode;
+  buildRatingCards();
+}
+
 function buildRatingCards(){
-  const el=document.getElementById('ratingCards');
-  el.innerHTML=S.alternatives.map(alt=>`
-    <div class="rating-card">
-      <div class="rating-alt-name">${alt}</div>
-      ${S.criteria.map(crit=>{
-        const key=alt+'__'+crit;
-        const cur=S.scores[key];
-        if(cur == null) S.scores[key] = 5;
-        const sid=key.replace(/[^a-z0-9]/gi,'_');
-        return `<div class="criteria-rating-row">
-          <div style="min-width:130px;flex-shrink:0">
-            <div class="crit-name">${crit}</div>
-            <span class="crit-type-badge ${S.benefit[crit]?'benefit':'cost'}">${S.benefit[crit]?'↑ Higher = Better':'↓ Lower = Better'}</span>
-          </div>
-          <div class="rating-full-row">
-            <input type="range" min="1" max="9" step="0.1" value="${cur||5}"
-              oninput="setSliderRating('${escQ(alt)}','${escQ(crit)}',this.value,this)">
-            <div class="rating-text" id="rtxt_${sid}">
-              ${cur ? cur.toFixed(1) : '5.0'}
-            </div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`).join('');
+  const el = document.getElementById('ratingCards');
+  const realCriteria   = S.criteria.filter(c => (S.criterionMode[c]||'slider') === 'real');
+  const sliderCriteria = S.criteria.filter(c => (S.criterionMode[c]||'slider') === 'slider');
+
+  // ── Section A: Real-value criteria (all alternatives together) ──
+  let realSection = '';
+  if(realCriteria.length > 0){
+    realSection = `
+      <div class="real-values-section">
+        <div class="section-label">📊 Real Values — enter actual numbers</div>
+        ${realCriteria.map(crit => {
+          const isBenefit = S.benefit[crit] !== false;
+          const allFilled = S.alternatives.every(a => S.realValues[a+'__'+crit] != null);
+          const altRowsHtml = S.alternatives.map(alt => {
+            const key  = alt + '__' + crit;
+            const sid  = key.replace(/[^a-z0-9]/gi, '_');
+            const rv   = S.realValues[key];
+            const prev = S.normPreview[key];
+            return `
+              <div class="real-input-row">
+                <span class="real-alt-label">${alt}</span>
+                <input class="real-value-input" type="number" placeholder="enter value"
+                  value="${rv != null ? rv : ''}"
+                  oninput="setRealValue('${escQ(alt)}','${escQ(crit)}',this.value)">
+                <span class="real-score-preview ${prev != null ? 'filled' : rv != null ? 'pending' : 'empty'}"
+                      id="rprev_${sid}">
+                  ${prev != null ? '→ ' + prev.toFixed(1) + ' / 9' : rv != null ? '…' : ''}
+                </span>
+              </div>`;
+          }).join('');
+          return `
+            <div class="real-crit-block">
+              <div class="crit-header-row">
+                <div>
+                  <div class="crit-name">${crit}</div>
+                  <span class="crit-type-badge ${isBenefit ? 'benefit' : 'cost'}">
+                    ${isBenefit ? '↑ Higher = Better' : '↓ Lower = Better'}
+                  </span>
+                </div>
+                <div class="mode-toggle">
+                  <button class="mode-btn" onclick="setCritMode('${escQ(crit)}','slider')">★ Rate</button>
+                  <button class="mode-btn active" onclick="setCritMode('${escQ(crit)}','real')"># Value</button>
+                </div>
+              </div>
+              <div class="real-inputs-grid">${altRowsHtml}</div>
+              <div class="${allFilled ? 'real-normalised-note' : 'real-hint'}">
+                ${allFilled
+                  ? '✓ Will be normalised automatically (' + (isBenefit?'higher':'lower') + ' = better score)'
+                  : 'Enter values for all ' + S.alternatives.length + ' options to auto-score'}
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  // ── Section B: Slider criteria (per-alternative cards) ──
+  const sliderSection = S.alternatives.map(alt => {
+    if(sliderCriteria.length === 0) return '';
+    return `
+      <div class="rating-card">
+        <div class="rating-alt-name">${alt}</div>
+        ${sliderCriteria.map(crit => {
+          const key = alt + '__' + crit;
+          const cur = S.scores[key];
+          if(cur == null) S.scores[key] = 5;
+          const sid = key.replace(/[^a-z0-9]/gi, '_');
+          return `
+            <div class="criteria-rating-row">
+              <div class="crit-header-row">
+                <div style="min-width:130px;flex-shrink:0">
+                  <div class="crit-name">${crit}</div>
+                  <span class="crit-type-badge ${S.benefit[crit] ? 'benefit' : 'cost'}">
+                    ${S.benefit[crit] ? '↑ Higher = Better' : '↓ Lower = Better'}
+                  </span>
+                </div>
+                <div class="mode-toggle">
+                  <button class="mode-btn active" onclick="setCritMode('${escQ(crit)}','slider')">★ Rate</button>
+                  <button class="mode-btn"        onclick="setCritMode('${escQ(crit)}','real')"># Value</button>
+                </div>
+              </div>
+              <div class="rating-full-row">
+                <input type="range" min="1" max="9" step="0.1" value="${cur || 5}"
+                  oninput="setSliderRating('${escQ(alt)}','${escQ(crit)}',this.value,this)">
+                <div class="rating-text" id="rtxt_${sid}">
+                  ${cur ? cur.toFixed(1) : '5.0'}
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = realSection + sliderSection;
 }
 
 function setSliderRating(alt, crit, val, el){
   val = parseFloat(val);
-
   const key = alt + '__' + crit;
   S.scores[key] = val;
-
   const sid = key.replace(/[^a-z0-9]/gi,'_');
-
   const txt = document.getElementById('rtxt_' + sid);
   if(txt) txt.textContent = val.toFixed(1);
 }
+
+
 async function runAnalysis(){
   const missing=[];
   S.alternatives.forEach(alt=>S.criteria.forEach(crit=>{ if(S.scores[alt+'__'+crit] == null) missing.push(alt+' → '+crit); }));
