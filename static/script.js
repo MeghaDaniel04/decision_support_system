@@ -9,6 +9,9 @@ const S = {
   neighborPrefs: {},     
   scores: {},            
   results: null,
+  criterionMode: {},  
+  realValues:   {},   
+  normPreview:  {},    
 };
 
 const API = () => document.getElementById('apiUrl').value.replace(/\/$/,'');
