@@ -778,7 +778,10 @@ function tryNav(n){
   else if(n===5&&S.results) goScreen(5);
 }
 function startOver(){
-  Object.assign(S,{decisionName:'',presetKey:null,alternatives:[],criteria:[],benefit:{},neighborPrefs:{},scores:{},results:null});
+  Object.assign(S,{decisionName:'',presetKey:null,alternatives:[],criteria:[],benefit:{},neighborPrefs:{},scores:{},
+criterionMode: {},
+realValues:    {},
+normPreview:   {},results:null});
   document.getElementById('decisionName').value='';
   document.querySelectorAll('.preset-chip').forEach(c=>c.classList.remove('selected'));
   document.getElementById('altTags').innerHTML='';
@@ -787,6 +790,8 @@ function startOver(){
   document.getElementById('compareBlock').style.display='none';
   showRecommendation(null);
   showSensitivity(null, S.criteria);
+  const normBox = document.getElementById('normMetaBox');
+  if(normBox) normBox.innerHTML = '';
   goScreen(1);
 }
 
@@ -798,5 +803,111 @@ document.addEventListener('click',e=>{
   if(cfg&&!cfg.contains(e.target)) document.getElementById('apiPopup').classList.remove('open');
 });
 
+// ── REAL VALUE FUNCTIONS ──────────────────────────────────────────
 
+function setRealValue(alt, crit, val) {
+  const key = alt + '__' + crit;
+  S.realValues[key] = (val === '' || val === null) ? null : parseFloat(val);
+  S.normPreview[key] = null;
+  _refreshPreviewLabel(alt, crit);
+  clearTimeout(window._normTimer);
+  window._normTimer = setTimeout(() => _fetchNormPreview(crit), 400);
+}
+
+function _refreshPreviewLabel(alt, crit) {
+  const key = alt + '__' + crit;
+  const sid = key.replace(/[^a-z0-9]/gi, '_');
+  const el  = document.getElementById('rprev_' + sid);
+  if(!el) return;
+  const score = S.normPreview[key];
+  const rv    = S.realValues[key];
+  if(rv == null){
+    el.textContent = ''; el.className = 'real-score-preview empty';
+  } else if(score != null){
+    el.textContent = '→ ' + score.toFixed(1) + ' / 9';
+    el.className = 'real-score-preview filled';
+  } else {
+    el.textContent = '…'; el.className = 'real-score-preview pending';
+  }
+}
+
+async function _fetchNormPreview(crit) {
+  const allFilled = S.alternatives.every(alt => {
+    const v = S.realValues[alt + '__' + crit];
+    return v !== null && v !== undefined && !isNaN(v);
+  });
+  if(!allFilled) return;
+
+  const real_values = {};
+  S.alternatives.forEach(alt => {
+    real_values[alt + '__' + crit] = S.realValues[alt + '__' + crit];
+  });
+
+  try {
+    const res = await fetch(API() + '/api/normalise', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        criteria:     [crit],
+        alternatives: S.alternatives,
+        benefit:      [S.benefit[crit] !== false],
+        real_values,
+      }),
+    });
+    if(!res.ok) return;
+    const data = await res.json();
+    Object.entries(data.normalised_scores).forEach(([k, v]) => {
+      S.normPreview[k] = v;
+      S.scores[k]      = v;
+    });
+    S.alternatives.forEach(alt => _refreshPreviewLabel(alt, crit));
+  } catch(e) {
+    console.warn('normalise preview failed:', e);
+  }
+}
+
+function showNormalisationMeta(meta) {
+  const box = document.getElementById('normMetaBox');
+  if(!box) return;
+  if(!meta) { box.innerHTML = ''; return; }
+
+  const normCriteria = Object.entries(meta).filter(([, v]) => v.all_present);
+  if(normCriteria.length === 0) { box.innerHTML = ''; return; }
+
+  const tables = normCriteria.map(([crit, info]) => {
+    const dir  = info.benefit ? 'Higher = Better' : 'Lower = Better';
+    const rows = Object.entries(info.alternatives).map(([alt, d]) => `
+      <tr>
+        <td style="padding:6px 10px">${alt}</td>
+        <td style="padding:6px 10px;font-family:monospace;color:var(--ink2)">${d.raw}</td>
+        <td style="padding:6px 10px;font-family:monospace;color:var(--green);font-weight:600">${d.score.toFixed(2)} / 9</td>
+      </tr>`).join('');
+    return `
+      <div style="margin-bottom:16px">
+        <div style="font-weight:600;margin-bottom:6px">
+          ${crit}
+          <span style="font-size:11px;color:var(--ink3);font-weight:400;margin-left:8px">
+            ${dir} · range: ${info.lo} – ${info.hi}
+          </span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="color:var(--ink3);font-size:11px;text-transform:uppercase">
+            <th style="text-align:left;padding:4px 10px">Option</th>
+            <th style="text-align:left;padding:4px 10px">Your Value</th>
+            <th style="text-align:left;padding:4px 10px">Score Used</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  box.innerHTML = `
+    <div class="card">
+      <div class="card-label">📐 How Real Values Were Converted</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">
+        Raw values normalised to 1–9. Best value → 9, worst → 1.
+      </div>
+      ${tables}
+    </div>`;
+}
 
