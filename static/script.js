@@ -583,7 +583,20 @@ function showRecommendation(rec){
       <h3>🏆 Recommended Option</h3>
       <p><strong>${rec.best}</strong></p>
       <p>${rec.message}</p>
-      <p><em>${rec.insight}</em></p>
+
+${rec.strengths ? `
+  <div><strong>Strengths:</strong> ${rec.strengths.join(', ')}</div>
+` : ''}
+
+${rec.weaknesses ? `
+  <div><strong>Weaknesses:</strong> ${rec.weaknesses.join(', ')}</div>
+` : ''}
+
+${rec.confidence ? `
+  <div><strong>Confidence:</strong> ${rec.confidence}</div>
+` : ''}
+
+<p><em>${rec.insight}</em></p>
     </div>
   `;
 }
@@ -901,13 +914,6 @@ function showNormalisationMeta(meta) {
       </div>`;
   }).join('');
 
-  box.innerHTML = `
-    <div class="card">
-      <div class="card-label">📐 How Real Values Were Converted</div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">
-        Raw values normalised to 1–9. Best value → 9, worst → 1.
-      </div>
-      ${tables}
-    </div>`;
+  box.innerHTML = ``;
 }
 
