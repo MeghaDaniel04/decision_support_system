@@ -5,19 +5,38 @@ except Exception:
     pass
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+# from fastapi.responses import JSONResponse
 from mcdn_engine.entropy_weights import entropy_weights
 from mcdn_engine.fuzzy_ahp import fuzzy_ahp
 from mcdn_engine.fuzzy_topsis import fuzzy_topsis
 import numpy as np
 from mcdn_engine.tfn import defuzz
 from services.criteria_suggester import GROQ_API_KEY , generate_criteria_suggestions
-from models import  SuggestCriteriaRequest, FetchScoresRequest, CombinedRequest
-import json, re, os, httpx, asyncio
+from models import  SuggestCriteriaRequest, CombinedRequest
+import json, re, os, httpx
 from services.recommendations import generate_recommendation
 from services.sensitivity_analysis import sensitivity_analysis
+from services.normalise_real import normalise_real_values, merge_into_matrix
+from models import CombinedRequest, NormaliseRequest , NormaliseResult
 
 router = APIRouter()
+
+@router.post("/normalise")
+def normalise(req: NormaliseRequest):
+    if not req.real_values:
+        raise HTTPException(400, "No real values provided")
+
+    result = normalise_real_values(
+        req.criteria,
+        req.alternatives,
+        req.benefit,
+        req.real_values,
+    )
+
+    return {
+        "normalised_scores": result["normalised_scores"],
+        "per_criterion":     result["per_criterion"],
+    }
 
 @router.post("/analyze")
 def analyze(req: CombinedRequest):
@@ -28,10 +47,35 @@ def analyze(req: CombinedRequest):
         raise HTTPException(400, "Need at least 2 criteria")
     if n_a < 2:
         raise HTTPException(400, "Need at least 2 alternatives")
+    
+
+    # merge real values into score matrix 
+    score_matrix = req.score_matrix
+    normalise_meta = None
+
+    if req.real_values:
+        norm_result = normalise_real_values(
+            req.criteria,
+            req.alternatives,
+            req.benefit,
+            req.real_values
+        )
+        score_matrix = merge_into_matrix(
+            req.score_matrix,
+            norm_result["normalised_scores"],
+            req.criteria,
+            req.alternatives
+        )
+        normalise_meta = norm_result["per_criterion"]
 
     #  Get weights
     ahp_w, lam, ci, cr = fuzzy_ahp(n_c, req.preference_matrix)  # TFN
-    ent_w, entropy = entropy_weights(req.score_matrix, req.benefit)  # crisp
+
+
+    ent_w, entropy = entropy_weights(score_matrix, req.benefit)  # crisp
+    print("\n=== ENTROPY VALUES ===")
+    for i, e in enumerate(entropy):
+        print(f"  {req.criteria[i]}: entropy={e:.4f}  weight={ent_w[i]:.4f}")
 
     #  Adaptive alpha (use defuzzed AHP)
     def adaptive_alpha(ahp_w, ent_w):
@@ -73,7 +117,7 @@ def analyze(req: CombinedRequest):
 
     #  Fuzzy TOPSIS
     cc, d_pos, d_neg = fuzzy_topsis(
-        req.score_matrix,
+        score_matrix,
         cw_fuzzy,
         req.benefit,
     )
@@ -84,18 +128,21 @@ def analyze(req: CombinedRequest):
     #  Sensitivity & recommendation (use crisp weights)
     sens = sensitivity_analysis(
         req.alternatives,
-        req.score_matrix,
+        score_matrix,
         cw_display,
         req.benefit,
         req.criteria,
     )
 
     recommendation = generate_recommendation(
-        req.alternatives,
-        cc,
-        cw_display,
-        req.criteria,
-    )
+    req.alternatives,
+    score_matrix,       # correct: raw score matrix for contribution analysis
+    cc,                 # correct: closeness coefficients to identify winner
+    cw_display,
+    req.criteria,
+    req.benefit,        # now passed: needed for strength/weakness classification
+    sensitivity_result=sens  # now passed: enables confidence message
+)
 
     #  Ranking
     ranked = sorted(range(n_a), key=lambda x: cc[x], reverse=True)
@@ -130,6 +177,7 @@ def analyze(req: CombinedRequest):
         "benefit": req.benefit,
         "recommendation": recommendation,
         "sensitivity": sens,
+        "normalisation_meta": normalise_meta
     }
 
 
