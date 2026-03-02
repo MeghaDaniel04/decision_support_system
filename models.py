@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class CombinedRequest(BaseModel):
@@ -8,7 +8,19 @@ class CombinedRequest(BaseModel):
     preference_matrix: List[List[float]]
     score_matrix: List[List[float]]
     benefit: List[bool]
-    ahp_weight: float = 0.5
+    real_values: Optional[Dict[str, float]] = None
+
+
+class NormaliseRequest(BaseModel):
+    criteria: List[str]
+    alternatives: List[str]
+    benefit: List[bool]
+    real_values: Dict[str, float]
+
+
+class NormaliseResult(BaseModel):
+    normalised_scores: Dict[str, float]
+    per_criterion: Dict[str, Any]
 
 
 class SuggestCriteriaRequest(BaseModel):
