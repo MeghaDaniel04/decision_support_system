@@ -285,4 +285,9 @@
 | 2 | *Enhancing Digital Governance Maturity Evaluation: An Integrated AHP and Entropy Weighting Approach* — Proceedings of the 2025 2nd International Conference on Innovation Management and Information System — https://share.google/3Hop7o6hZ20HZHaOl |
 | 3 | *Introduction of MAUT and MCDA* — Medium (@vrajpatel9988) — https://medium.com/@vrajpatel9988/introduction-of-maut-and-mcda-9802b547506c |
 
+## 15. AI Tools Used
+| 1 | Codex |
+| 2 | Github Copilot |
+| 3 | ChatGPT |
+ 
 ---
