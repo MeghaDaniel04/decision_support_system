@@ -14,11 +14,10 @@ import os
 
 app = FastAPI()
 
-allowed_origin = os.getenv("ALLOWED_ORIGIN", "http://localhost:8000")
 # Allow requests from the frontend (adjust origins for production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[allowed_origin],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
