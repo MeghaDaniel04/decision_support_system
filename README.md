@@ -256,6 +256,7 @@ Create a `.env` file in the project root:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
+ALLOWED_ORIGIN=http://localhost:8000
 ```
 
 The AI criteria suggestion endpoint requires a valid Groq API key. If absent, the system falls back to hardcoded preset suggestions — all other functionality remains available.
